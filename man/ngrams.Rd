@@ -4,7 +4,13 @@
 \alias{ngrams}
 \title{Explore Twitter trends with the Storywrangler ngrams API}
 \usage{
-ngrams(query, metric = c("rank", "freq"), language = "en", rt = c(FALSE, TRUE))
+ngrams(
+  query,
+  metric = c("rank", "freq"),
+  language = "en",
+  rt = c(FALSE, TRUE),
+  fill_dates = FALSE
+)
 }
 \arguments{
 \item{query}{Character string with the n-gram(s) to query. One, two, or three
@@ -18,9 +24,18 @@ treated as separate queries for individual 1-grams.}
 \item{language}{Two-letter code for the language to search. Defaults to \code{en}.}
 
 \item{rt}{Boolean for whether to include retweets.}
+
+\item{fill_dates}{Boolean, defaults to \code{FALSE}. The Storywrangler ngrams API
+only returns rows for dates when it detected any ngram usage. By default,
+this function passes along that data. If the parameter \code{fill_dates} is set
+to \code{TRUE}, this function adds rows with \code{NA} values for each day between
+the earliest and latest dates in the response. Note that this is closer to
+Storywrangler's behaviour if you download ngram statistics from the web
+interface.}
 }
 \value{
-A tibble with the API query and response.
+A tibble with the API query and response. If the API returns no data,
+this function returns a 0-row tibble.
 }
 \description{
 Storywrangler's ngrams API lets you search a large historical database of

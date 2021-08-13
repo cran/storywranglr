@@ -4,6 +4,8 @@
 # storywranglr
 
 <!-- badges: start -->
+
+[![](https://www.r-pkg.org/badges/version/storywranglr?color=green)](https://cran.r-project.org/package=storywranglr)
 <!-- badges: end -->
 
 This package makes it easy to explore trends in Twitter data using the
@@ -17,6 +19,13 @@ For more details about Storywrangler, please see:
     <https://advances.sciencemag.org/content/7/29/eabe6534.full>
 
 ## Installation
+
+You can install the developer version, which has the latest bugfixes and
+features, with:
+
+``` r
+devtools::install_github("chris31415926535/storywranglr")
+```
 
 You can install the released version of storywranglr from
 [CRAN](https://CRAN.R-project.org) with:

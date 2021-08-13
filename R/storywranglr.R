@@ -22,8 +22,16 @@
 #'   (default) and `freq`. *Note:* API returns both by default.
 #' @param language Two-letter code for the language to search. Defaults to `en`.
 #' @param rt Boolean for whether to include retweets.
+#' @param fill_dates Boolean, defaults to `FALSE`. The Storywrangler ngrams API
+#'   only returns rows for dates when it detected any ngram usage. By default,
+#'   this function passes along that data. If the parameter `fill_dates` is set
+#'    to `TRUE`, this function adds rows with `NA` values for each day between
+#'    the earliest and latest dates in the response. Note that this is closer to
+#'    Storywrangler's behaviour if you download ngram statistics from the web
+#'    interface.
 #'
-#' @return A tibble with the API query and response.
+#' @return A tibble with the API query and response. If the API returns no data,
+#'   this function returns a 0-row tibble.
 #' @export
 #'
 #' @examples
@@ -41,7 +49,8 @@
 ngrams <- function(query,
                     metric = c("rank", "freq"),
                     language = "en",
-                    rt = c(FALSE, TRUE)){
+                    rt = c(FALSE, TRUE),
+                   fill_dates = FALSE){
 
   # trying to write this package according to API best practices here
   # https://cran.r-project.org/web/packages/httr/vignettes/api-packages.html
@@ -53,7 +62,6 @@ ngrams <- function(query,
   # remove repeated whitespace
   query <- gsub(x = query, pattern = "\\s+", replacement = " ")
 
-  #if (stringi::stri_count_fixed(query, " ") > 2) stop ("Please enter a 1-gram, 2-gram, or 3-gram.")
   if (nchar(query) == 0) stop ("Please supply a valid query.")
 
   # make sure the other parameters are valid
@@ -61,6 +69,8 @@ ngrams <- function(query,
   rt <- as.character(rt)
   rt <- match.arg(rt, rt)
   src <- "api" #match.arg(src, src)
+
+  if (!fill_dates %in% c(TRUE, FALSE)) stop ("Parameter `fill_dates` must be logical TRUE or FALSE.")
 
   base_url <- "https://storywrangling.org/api/ngrams/"
 
@@ -104,19 +114,61 @@ ngrams <- function(query,
   # (tried briefly with map but this is just easier for now)
   results <- tibble::tibble()
   for (i in 1:length(df$data)){
+
+    # get the response we're looking at
     x <- df$data[[i]]
-    x$date <- as.Date(x$date)
-    x$query <- names(df$data)[[i]]
-    x$language <- metadata["language"]
+
+    # make sure response has at least one row of findings, then extract them
+    if (nrow(tibble::as_tibble(x)) > 0) {
+
+      x$date <- as.Date(x$date)
+      x$query <- names(df$data)[[i]]
+      x$language <- metadata["language"]
+      result <- tibble::as_tibble(x)
+
+      # if we are filling in the missing dates, do that now
+      if (fill_dates) {
+        # get the dates we need to add back
+        all_dates <- tibble::tibble(date = seq.Date(from = min(result$date), to = max(result$date), by = "day"))
+
+        # do a left-join with our findings to add the dates
+        result <- dplyr::left_join(all_dates, result, by = "date")
+
+        # and make sure we set the query and language columns for the new rows!
+        result$query <- names(df$data)[[i]]
+        result$language <- metadata["language"]
+
+      }
+
+    }
+
+    # if the API response has zero rows, i.e. it didn't find anything,
+    # we create a zero-row tibble with the expected column names and types
+    if (nrow(tibble::as_tibble(x)) == 0){
+
+      result <- tibble::tibble(
+                    date = as.Date(NA),
+                    count = numeric(),
+                    count_no_rt = numeric(),
+                    rank = numeric(),
+                    rank_no_rt = numeric(),
+                    freq = numeric(),
+                    freq_no_rt = numeric(),
+                    odds = numeric(),
+                    odds_no_rt = numeric(),
+                    query = character(),
+                    language = character())
+
+    }
+
+    # add our results
     results <- dplyr::bind_rows(results,
-                                tibble::as_tibble(x))
+                                result)
   }
 
   # also give it class "storywrangler" for customized printing
   # note! this isn't implemented right now; the class doesn't do anything.
   class(results) <- c("storywrangler.ngrams", class(results))
-
-
 
   # store the url call in metadata attributes for printing
   attr(results, "api_call") <- url
@@ -212,8 +264,9 @@ zipf <- function(date,
   # put the data into a tibble
   data <- tibble::as_tibble(df$data)
 
-  # add the date as a column for completeness
+  # add the date and language as columns for completeness
   data$date <- date
+  data$language <- language
 
   # also give it class "storywrangler.zipf" for customized printing
   # note! this isn't implemented right now; the class doesn't do anything.
